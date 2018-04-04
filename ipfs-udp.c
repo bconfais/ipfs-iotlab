@@ -20,7 +20,7 @@
 
 enum operation_t {GET,PUT,POST};
 
-void ipfs_send(char *addr_str, uint16_t src_port, uint16_t dst_port, char *data, size_t data_len, unsigned int num, unsigned int delay) {
+void ipfs_udp_send(char *addr_str, uint16_t src_port, uint16_t dst_port, char *data, size_t data_len, unsigned int num, unsigned int delay) {
  ipv6_addr_t addr;
 
  /* parse destination address */
@@ -89,7 +89,7 @@ struct worker_t {
 };
 static struct worker_t workers[WORKERS];
 
-void ipfs_init_workers(void) {
+void ipfs_udp_init_workers(void) {
  for(int i=0; i < WORKERS; i++) {
 //  workers[i].server = GNRC_NETREG_ENTRY_INIT_PID(0, KERNEL_PID_UNDEF);
   memset(&(workers[i].server), 0, sizeof(workers[i].server));
@@ -98,7 +98,7 @@ void ipfs_init_workers(void) {
  }
 }
 
-static int ipfs_analyze(msg_t *msg, struct worker_t *worker) {
+static int ipfs_udp_analyze(msg_t *msg, struct worker_t *worker) {
  char src_addr_str[IPV6_ADDR_MAX_STR_LEN];
  int src_port;
  char data[BUFFER_SIZE];
@@ -144,7 +144,7 @@ static int ipfs_analyze(msg_t *msg, struct worker_t *worker) {
  return 0;
 }
 
-static void *ipfs_handler(void *arg) {
+static void *ipfs_udp_handler(void *arg) {
  struct worker_t *worker = (struct worker_t*) arg;
  char buffer[BUFFER_SIZE];
  size_t buffer_len;
@@ -165,7 +165,7 @@ static void *ipfs_handler(void *arg) {
  } else {
   buffer_len = 0;
  }
- ipfs_send(worker->ip, worker->src_port, worker->dst_port, buffer, buffer_len, 1, 1000000LU);
+ ipfs_udp_send(worker->ip, worker->src_port, worker->dst_port, buffer, buffer_len, 1, 1000000LU);
 
  while (1) {
   printf("waiting for reply on port %d\n", worker->src_port);
@@ -173,7 +173,7 @@ static void *ipfs_handler(void *arg) {
   puts("message received");
   switch (msg.type) {
    case GNRC_NETAPI_MSG_TYPE_RCV:
- if(1==ipfs_analyze(&msg, worker)) {
+ if(1==ipfs_udp_analyze(&msg, worker)) {
   puts("IPFS commit");
   gnrc_pktbuf_release(msg.content.ptr);
   worker->used = 0;
@@ -198,7 +198,7 @@ static void *ipfs_handler(void *arg) {
 }
 
 
-void ipfs_request(char *ip, enum operation_t operation, char *object, char *data) {
+void ipfs_udp_request(char *ip, enum operation_t operation, char *object, char *data) {
  static uint16_t port = 2000;
  port++;
  int found;
@@ -231,7 +231,7 @@ void ipfs_request(char *ip, enum operation_t operation, char *object, char *data
  }
 
  if (worker->server_pid <= KERNEL_PID_UNDEF) {
-  worker->server_pid = thread_create(worker->server_stack, sizeof(worker->server_stack), SERVER_PRIO, THREAD_CREATE_STACKTEST, ipfs_handler, worker, "ipfs");
+  worker->server_pid = thread_create(worker->server_stack, sizeof(worker->server_stack), SERVER_PRIO, THREAD_CREATE_STACKTEST, ipfs_udp_handler, worker, "ipfs");
   if (worker->server_pid <= KERNEL_PID_UNDEF) {
    puts("Error: cannot start thread");
    worker->server_pid = KERNEL_PID_UNDEF;
@@ -244,16 +244,16 @@ void ipfs_request(char *ip, enum operation_t operation, char *object, char *data
 
 
 
-int ipfs_cmd(int argc, char **argv) {
+int ipfs_udp_cmd(int argc, char **argv) {
  /* check if a port was given */
  if ( argc < 4 ) {
   puts("usage: ipfs ip <put|get> object data");
   return 1;
  }
  if (argc == 5) {
-  ipfs_request(argv[1], (0==strcmp(argv[2], "get"))?GET:PUT, argv[3], argv[4]);
+  ipfs_udp_request(argv[1], (0==strcmp(argv[2], "get"))?GET:PUT, argv[3], argv[4]);
  } else {
-  ipfs_request(argv[1], (0==strcmp(argv[2], "get"))?GET:PUT, argv[3], NULL);
+  ipfs_udp_request(argv[1], (0==strcmp(argv[2], "get"))?GET:PUT, argv[3], NULL);
  }
  return 0;
 }

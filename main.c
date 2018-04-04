@@ -13,16 +13,16 @@
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 extern int rcli_cmd(int argc, char **argv);
 extern int rcli_server_start(char *port_str);
-extern int http_cmd(int argc, char **argv);
-extern int ipfs_cmd(int argc, char **argv);
-extern void ipfs_init_workers(void);
+extern int ipfs_tcp_cmd(int argc, char **argv);
+extern int ipfs_udp_cmd(int argc, char **argv);
+extern void ipfs_udp_init_workers(void);
 enum operation_t {GET,PUT,POST};
 //extern int http(enum operation_t operation, char *full_url, uint16_t target_port, int donotread, char *data);
 extern void rcli_send(char *addr_str, uint16_t port, char *data, size_t data_len, unsigned int num, unsigned int delay);
 const shell_command_t shell_commands[] = {
- { "http", "perform a http request", http_cmd },
  { "rcli", "listen udp port to receive commands", rcli_cmd },
- { "ipfs", "put and get objects on ipfs node", ipfs_cmd},
+ { "ipfs_tcp", "put and get objects on ipfs node (TCP version)", ipfs_tcp_cmd},
+ { "ipfs_udp", "put and get objects on ipfs node (UDP version)", ipfs_udp_cmd},
  { NULL, NULL, NULL }
 };
 
@@ -53,7 +53,7 @@ int main(void) {
  puts("RIOT network stack example application");
 
  /* init ipfs workers */
- ipfs_init_workers();
+ ipfs_udp_init_workers();
 
  /* start udp server */
  rcli_server_start("1234");

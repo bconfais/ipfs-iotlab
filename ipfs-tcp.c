@@ -3,6 +3,7 @@
 #include "net/gnrc.h"
 #include "net/gnrc/ipv6.h"
 #include "net/gnrc/tcp.h"
+
 int tcp_send(gnrc_tcp_tcb_t *tcp, char *buffer, int buffer_size) {
  ssize_t res, res_;
  for (res = 0; res < buffer_size ; res+=res_) {
@@ -35,16 +36,16 @@ int tcp_send(gnrc_tcp_tcb_t *tcp, char *buffer, int buffer_size) {
 }
 
 enum operation_t {GET,PUT,POST};
-int http(enum operation_t operation, char *full_url, uint16_t target_port, int donotread, char *data) {
+int ipfs_tcp(enum operation_t operation, char *full_url, uint16_t target_port, int donotread, char *data) {
 #define BUFFER_SIZE 256
  char *server, *url;
  char buffer[BUFFER_SIZE];
  int buffer_size;
  ssize_t res, res_;
- int http_status;
+ int ipfs_tcp_status;
  char *s, *ss;
 
- if (0!=strncmp(full_url, "http://", 7)) {
+ if (0!=strncmp(full_url, "ipfs_tcp://", 7)) {
   puts("invalid url");
   return 1;
  }
@@ -62,12 +63,12 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
  ipv6_addr_t target_addr;
  ipv6_addr_from_str(&target_addr, server);
 
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("init");
 #endif
  gnrc_tcp_init();
  gnrc_tcp_tcb_init(&tcp);
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("init done");
 #endif
 
@@ -100,14 +101,14 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
    printf("unable to connect: ?\n");
    return 1;
  }
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("connected");
 #endif
 
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("send");
 #endif
- buffer_size = snprintf(buffer, BUFFER_SIZE, "%s /%s HTTP/1.0\r\n", (GET==operation)?"GET":(PUT==operation)?"PUT":(POST==operation)?"POST":"HEAD", url);
+ buffer_size = snprintf(buffer, BUFFER_SIZE, "%s /%s ipfs_tcp/1.0\r\n", (GET==operation)?"GET":(PUT==operation)?"PUT":(POST==operation)?"POST":"HEAD", url);
  if ( 0 != (res= tcp_send(&tcp, buffer, buffer_size)) ) { return res; }
  if (data != NULL) {
   buffer_size = snprintf(buffer, BUFFER_SIZE, "Content-Type: multipart/form-data; boundary=xxx\r\n");
@@ -131,7 +132,7 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
   if ( 0 != (res= tcp_send(&tcp, buffer, buffer_size)) ) { return res; }
  }
 
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("sent");
 #endif
 
@@ -142,9 +143,9 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
  }
 
  res = 0;
- http_status = -1;
+ ipfs_tcp_status = -1;
  do {
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
   puts("read header");
 #endif
   res_ = gnrc_tcp_recv(&tcp, buffer, BUFFER_SIZE, GNRC_TCP_CONNECTION_TIMEOUT_DURATION);
@@ -179,13 +180,13 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
   buffer[res_] = '\0';
   printf("%s", buffer);
   fflush(stdout);
-  /* http status */
-  if (-1 == http_status && (NULL != (s = strstr(buffer, "HTTP/1.1"))) ) {
+  /* ipfs_tcp status */
+  if (-1 == ipfs_tcp_status && (NULL != (s = strstr(buffer, "ipfs_tcp/1.1"))) ) {
    s+=9;
    if (NULL != (ss = strstr(s, " "))) {
      *ss = '\0';
    }
-   http_status = atoi(s);
+   ipfs_tcp_status = atoi(s);
    if (NULL != ss) {
     *ss = ' ';
    }
@@ -202,12 +203,12 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
    }
   }
  } while(NULL == (s = strstr(buffer, "\r\n\r\n")));
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("read header ok");
 #endif
  s+=4;
  for ( res = res_-(s-buffer); res < buffer_size; res+= res_) {
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
   puts("read body");
 #endif
   res_ = gnrc_tcp_recv(&tcp, buffer, ((buffer_size-res)>BUFFER_SIZE)?BUFFER_SIZE:(buffer_size-res), GNRC_TCP_CONNECTION_TIMEOUT_DURATION);
@@ -242,7 +243,7 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
   buffer[res_] = '\0';
   printf("%s", buffer);
  }
-#ifdef HTTPDEBUG
+#ifdef ipfs_tcpDEBUG
  puts("read body ok");
  puts("close");
 #endif
@@ -253,18 +254,18 @@ int http(enum operation_t operation, char *full_url, uint16_t target_port, int d
 #endif
  gnrc_tcp_abort(&tcp);
  puts("closed");
- printf("Exited with http status %d\n", http_status);
+ printf("Exited with ipfs_tcp status %d\n", ipfs_tcp_status);
 
  return 0;
 }
 
-int http_cmd(int argc, char **argv) {
+int ipfs_tcp_cmd(int argc, char **argv) {
  printf("%d\n", argc);
  enum operation_t operation;
  uint16_t target_port;
  int donotread = 0;
  if (argc <= 2) {
-  printf("http <get|put|post> <url> <port> <donotread> <data>\n");
+  printf("ipfs_tcp <get|put|post> <url> <port> <donotread> <data>\n");
   return 1;
  }
  if (argc>=5 && 0 == strcmp(argv[4], "1")) {
@@ -274,13 +275,13 @@ int http_cmd(int argc, char **argv) {
  if (0==strcmp(argv[1], "GET") || 0==strcmp(argv[1], "get")) { operation = GET; }
  else if (0==strcmp(argv[1], "PUT") || 0==strcmp(argv[1], "put")) { operation = PUT; }
  else if (0==strcmp(argv[1], "POST") || 0==strcmp(argv[1], "post")) { operation = POST;}
- else {printf("unknown operation: \"%s\"\nhttp <get|put|post> <url> <port> <donotread> <data>\n", argv[1]);  return 1;}
+ else {printf("unknown operation: \"%s\"\nipfs_tcp <get|put|post> <url> <port> <donotread> <data>\n", argv[1]);  return 1;}
 
  if( argc>=4) {
   target_port = atoi(argv[3]);
  } else {
   target_port = 5001;
  }
- return http(operation, argv[2], target_port, donotread, (argc>=6)?argv[5]:NULL);
+ return ipfs_tcp(operation, argv[2], target_port, donotread, (argc>=6)?argv[5]:NULL);
 }
 
